@@ -3,6 +3,7 @@ import os
 import warnings
 from dotenv import load_dotenv
 from urllib.parse import quote_plus
+from sqlalchemy import create_engine
 from langchain_community.utilities import SQLDatabase
 from langchain_community.agent_toolkits import create_sql_agent
 from langchain_groq import ChatGroq
@@ -47,6 +48,7 @@ def run_sql_agent():
         raise EnvironmentError(f"환경변수 누락: {missing}")
 
     db_uri = f"mysql+pymysql://{MYSQL_USER}:{quote_plus(MYSQL_PASSWORD)}@{MYSQL_HOST}/{MYSQL_DB}"
+    engine = create_engine(db_uri)
 
     llm = ChatGroq(
         api_key=GROQ_API_KEY,
@@ -69,7 +71,7 @@ def run_sql_agent():
         print(f"\n[선택된 테이블] {relevant_tables}")
 
         if not relevant_tables:
-            print("관련 테이블을 찾지 못했습니다. 질문을 바꿔보세요.")
+            print("관련 테이블을 찾지 못했습니다.")
             continue
 
         # 3단계: 세부 메타 + 관계 로드
@@ -88,7 +90,8 @@ def run_sql_agent():
             dynamic_prefix += f"\n\n{rel_meta}"
 
         # 5단계: SQL 연결
-        db = SQLDatabase.from_uri(db_uri, include_tables=relevant_tables)
+        # db = SQLDatabase.from_uri(db_uri, include_tables=relevant_tables)
+        db = SQLDatabase(engine=engine, include_tables=relevant_tables)
 
         # 6단계: Agent 실행
         agent_executor = create_sql_agent(
