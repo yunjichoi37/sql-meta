@@ -1,0 +1,12 @@
+{
+  "summary": "공급 업체 정보",
+  "description": "상품을 공급하는 협력 업체의 연락처 및 기본 정보를 담는 테이블",
+  "columns": {
+    "vendor_ID": "공급 업체 고유 ID (PK)",
+    "name": "업체명",
+    "phone": "업체 연락처",
+    "email": "업체 이메일"
+  },
+  "common_filters": "",
+  "notes": ""
+}

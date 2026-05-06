@@ -1,0 +1,72 @@
+[
+  {
+    "from_table": "sales_transaction",
+    "from_col": "loyalty_ID",
+    "to_table": "customer",
+    "to_col": "loyalty_ID",
+    "note": "INNER JOIN, 모든 거래에는 구매 고객 정보가 연결됨"
+  },
+  {
+    "from_table": "sales_transaction",
+    "from_col": "store_ID",
+    "to_table": "store",
+    "to_col": "store_ID",
+    "note": "INNER JOIN, 거래가 발생한 매장 정보"
+  },
+  {
+    "from_table": "transaction_product",
+    "from_col": "transaction_ID",
+    "to_table": "sales_transaction",
+    "to_col": "transaction_ID",
+    "note": "1:N, 하나의 거래 헤더에 여러 개의 상세 상품 항목이 포함됨"
+  },
+  {
+    "from_table": "transaction_product",
+    "from_col": "product_UPC",
+    "to_table": "product",
+    "to_col": "product_UPC",
+    "note": "INNER JOIN, 판매된 상품의 마스터 정보"
+  },
+  {
+    "from_table": "inventory",
+    "from_col": "store_ID",
+    "to_table": "store",
+    "to_col": "store_ID",
+    "note": "INNER JOIN, 해당 재고 데이터가 속한 매장"
+  },
+  {
+    "from_table": "inventory",
+    "from_col": "product_UPC",
+    "to_table": "product",
+    "to_col": "product_UPC",
+    "note": "INNER JOIN, 해당 재고 데이터의 대상 상품"
+  },
+  {
+    "from_table": "product_supply",
+    "from_col": "product_UPC",
+    "to_table": "product",
+    "to_col": "product_UPC",
+    "note": "INNER JOIN, 공급되는 상품 정보"
+  },
+  {
+    "from_table": "product_supply",
+    "from_col": "vendor_ID",
+    "to_table": "vendor",
+    "to_col": "vendor_ID",
+    "note": "INNER JOIN, 상품을 공급하는 업체 정보"
+  },
+  {
+    "from_table": "customer_email",
+    "from_col": "loyalty_ID",
+    "to_table": "customer",
+    "to_col": "loyalty_ID",
+    "note": "1:N, 고객 한 명당 여러 개의 이메일 주소 등록 가능"
+  },
+  {
+    "from_table": "customer_phone",
+    "from_col": "loyalty_ID",
+    "to_table": "customer",
+    "to_col": "loyalty_ID",
+    "note": "1:N, 고객 한 명당 여러 개의 전화번호 등록 가능"
+  }
+]

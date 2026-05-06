@@ -1,0 +1,10 @@
+{
+    "summary": "고객 기본 정보",
+    "description": "고객의 마스터 정보를 관리하는 테이블",
+    "columns": {
+        "loyalty_ID": "고객 고유 ID (PK)",
+        "name": "고객명"
+    },
+    "common_filters": "",
+    "notes": "loyalty_ID를 통해 거래 및 혜택 정보와 연동됨"
+}
