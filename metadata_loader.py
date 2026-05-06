@@ -7,7 +7,7 @@ RELATIONSHIPS_PATH = Path("metadata/relationships.json")
 
 
 def get_relevant_tables(user_question: str, llm, all_tables: list) -> list:
-    # 2단계: 각 테이블의 summary(한 줄 설명)만 보고 필요한 테이블 선택
+    # 1단계: 각 테이블의 summary만 보고 필요한 테이블 선택
     # 메타 파일 없으면 테이블명만으로 fallback
     
     table_summaries = []
@@ -37,7 +37,7 @@ def get_relevant_tables(user_question: str, llm, all_tables: list) -> list:
 
 
 def load_table_metadata(relevant_tables: list) -> str:
-    # 3단계: 선택된 테이블의 세부 메타(columns, notes 등) 로드
+    # 2단계: 선택된 테이블의 세부 메타 정보 로드
     
     if not relevant_tables:
         return ""
@@ -71,7 +71,7 @@ def load_table_metadata(relevant_tables: list) -> str:
 
 
 def load_relationships(relevant_tables: list) -> str:
-    # 3단계: 선택된 테이블 간 관계(조인) 로드
+    # 3단계: 선택된 테이블 간 관계 로드
     
     if not RELATIONSHIPS_PATH.exists() or not relevant_tables:
         return ""
@@ -87,7 +87,7 @@ def load_relationships(relevant_tables: list) -> str:
     if not filtered:
         return ""
 
-    lines = ["[테이블 관계 / 조인 힌트]"]
+    lines = ["[테이블 관계]"]
     for r in filtered:
         note = f" ({r['note']})" if r.get("note") else ""
         lines.append(f"  - {r['from_table']}.{r['from_col']} → {r['to_table']}.{r['to_col']}{note}")
