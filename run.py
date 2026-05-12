@@ -35,8 +35,17 @@ AGENT_PREFIX = """You are a SQL expert connected to a real production database.
                 3. Include column headers in the first line of the CSV output.
                 """
 
-ALL_TABLES = [ # 테스트 용으로 일부만..
-    "aaduser", "account", "accountleads"
+ALL_TABLES = [
+    "account",      # 거래처
+    "contact",      # 연락처
+    "lead",         # 잠재 고객
+    "opportunity",  # 영업 기회
+    "incident",     # 서비스 케이스
+    "systemuser",   # 내부 직원
+    "task",         # 활동/작업
+    "quote",        # 견적
+    "salesorder",   # 주문
+    "invoice"       # 송장
 ]
 
 def run_sql_agent():
