@@ -1,65 +1,116 @@
 # run.py
 import os
+import struct
 import warnings
+import pyodbc
+import requests
 from dotenv import load_dotenv
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.tools import tool
 from langchain_groq import ChatGroq
 
 from metadata_loader import get_relevant_tables, load_table_metadata, load_relationships
-from dataverse_tool import query_dataverse
 
 warnings.filterwarnings("ignore")
 load_dotenv()
 
 DATAVERSE_SERVER = os.getenv("DATAVERSE_SERVER")
+DATAVERSE_DATABASE = os.getenv("DATAVERSE_DATABASE")
 DATAVERSE_CLIENT_ID = os.getenv("DATAVERSE_CLIENT_ID")
 DATAVERSE_CLIENT_SECRET = os.getenv("DATAVERSE_CLIENT_SECRET")
-DATAVERSE_TENANT_ID = os.getenv("DATAVERSE_TENANT_ID")
+DATAVERSE_TENANT_ID = os.getenv("DATAVERSE_TENANT_ID") # 토큰 발급용
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-# SQL 대신 OData를 작성하도록 프롬프트 전면 수정
-AGENT_PREFIX = """You are a Dataverse OData expert connected to a real production environment.
+def get_dataverse_token() -> str:
+    """OData 때 썼던 확실한 방식으로 Azure AD 토큰을 직접 발급받음"""
+    server_domain = DATAVERSE_SERVER.split(",")[0] # 포트 번호 분리
+    token_url = f"https://login.microsoftonline.com/{DATAVERSE_TENANT_ID}/oauth2/v2.0/token"
+    token_data = {
+        "client_id": DATAVERSE_CLIENT_ID,
+        "client_secret": DATAVERSE_CLIENT_SECRET,
+        "grant_type": "client_credentials",
+        "scope": f"https://{server_domain}/.default"
+    }
+
+    response = requests.post(token_url, data=token_data)
+    response.raise_for_status()
+    return response.json().get("access_token")
+
+
+@tool
+def execute_sql_query(sql_query: str) -> str:
+    """
+    Dataverse TDS 엔드포인트에 T-SQL 쿼리를 직접 실행하고 결과를 반환합니다.
+    """
+    try:
+        # 1. 토큰 발급
+        token = get_dataverse_token()
+        
+        # 2. ODBC가 알아먹을 수 있게 토큰을 Byte Struct로 변환 (마법의 주문)
+        token_bytes = token.encode("utf-16-le")
+        token_struct = struct.pack(f"<I{len(token_bytes)}s", len(token_bytes), token_bytes)
+        SQL_COPT_SS_ACCESS_TOKEN = 1256  # ODBC 토큰 주입 옵션 번호
+
+        # 3. ID/PWD 없이 토큰만 들고 들어감
+        conn_str = (
+            f"Driver={{ODBC Driver 17 for SQL Server}};"
+            f"Server={DATAVERSE_SERVER};"
+            f"Database={DATAVERSE_DATABASE};"
+            f"Encrypt=yes;"
+        )
+        
+        # 연결 시 attrs_before 파라미터로 토큰 강제 주입
+        conn = pyodbc.connect(conn_str, attrs_before={SQL_COPT_SS_ACCESS_TOKEN: token_struct}, autocommit=True)
+        cursor = conn.cursor()
+        
+        cursor.execute(sql_query)
+        
+        if cursor.description is None:
+            return "실행 완료 (반환된 데이터 없음)"
+            
+        columns = [column[0] for column in cursor.description]
+        results = []
+        for row in cursor.fetchall():
+            results.append(dict(zip(columns, row)))
+            
+        conn.close()
+        return str(results)
+    except Exception as e:
+        return f"SQL 실행 에러: {e}\n이 에러를 바탕으로 쿼리를 수정해서 다시 시도하세요."
+
+
+AGENT_PREFIX = """You are a SQL expert connected to a Dataverse database via TDS endpoint.
 
                 Rules:
-                1. DO NOT write SQL. You must write OData queries for Dataverse Web API.
-                2. Use the provided 'query_dataverse' tool to fetch data.
-                3. Always verify column names with the metadata below before writing a query.
-                4. Dataverse Web API usually requires plural Entity Set Names for endpoints (e.g., 'account' -> 'accounts', 'opportunity' -> 'opportunities').
-                5. Pass ONLY the relative OData query string to the tool (e.g., 'accounts?$select=name,address1_city&$filter=address1_city eq 'Seoul'&$top=10').
+                1. Always use standard T-SQL syntax.
+                2. Use the 'execute_sql_query' tool to fetch data.
+                3. Always verify column names with the provided metadata below before writing a query.
+                4. Only use the available tables and columns. Never assume or invent names.
+                5. Do NOT use markdown code blocks inside the tool input, pass the raw string.
                 6. Report query results as facts. Do NOT add disclaimers or caveats.
-                
-                Output Format:
-                Format the final query results as a clean list or CSV style based on user request.
                 """
 
 ALL_TABLES = [
-    "account",      # 거래처
-    "contact",      # 연락처
-    "lead",         # 잠재 고객
-    "opportunity",  # 영업 기회
-    "incident",     # 서비스 케이스
-    "systemuser",   # 내부 직원
-    "task",         # 활동/작업
-    "quote",        # 견적
-    "salesorder",   # 주문
-    "invoice"       # 송장
+    "account", "contact", "lead", "opportunity", "incident", 
+    "systemuser", "task", "quote", "salesorder", "invoice"
 ]
 
-def run_odata_agent():
-    required_vars = ["DATAVERSE_SERVER", "DATAVERSE_CLIENT_ID", "DATAVERSE_CLIENT_SECRET", "DATAVERSE_TENANT_ID", "GROQ_API_KEY"]
-
+def run_sql_agent():
+    required_vars = ["DATAVERSE_SERVER", "DATAVERSE_DATABASE", "DATAVERSE_CLIENT_ID", "DATAVERSE_CLIENT_SECRET", "DATAVERSE_TENANT_ID", "GROQ_API_KEY"]
+    
     missing = [v for v in required_vars if not os.getenv(v)]
     if missing:
         raise EnvironmentError(f"환경변수 누락: {missing}")
 
     llm = ChatGroq(
         api_key=GROQ_API_KEY,
-        model_name="llama-3.3-70b-versatile",
+        # model_name="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
         temperature=0
     )
 
-    tools = [query_dataverse]
+    tools = [execute_sql_query]
 
     while True:
         user_input = input("질문: ").strip()
@@ -69,7 +120,6 @@ def run_odata_agent():
         if not user_input:
             continue
 
-        # 2단계: summary 기반 테이블 선택 (메타데이터 파일명과 매칭을 위해 원본 리스트 사용)
         relevant_tables = get_relevant_tables(user_input, llm, ALL_TABLES)
         print(f"\n[선택된 테이블] {relevant_tables}")
 
@@ -77,22 +127,15 @@ def run_odata_agent():
             print("관련 테이블을 찾지 못했습니다.")
             continue
 
-        # 3단계: 세부 메타 + 관계 로드
         table_meta = load_table_metadata(relevant_tables)
-        print(f"\n{table_meta}")
-        
         rel_meta = load_relationships(relevant_tables)
-        if rel_meta:
-            print(f"\n{rel_meta}")
 
-        # 4단계: prefix에 메타 주입
         dynamic_prefix = AGENT_PREFIX
         if table_meta:
             dynamic_prefix += f"\n\n{table_meta}"
         if rel_meta:
             dynamic_prefix += f"\n\n{rel_meta}"
 
-        # 5단계: Agent 프롬프트 및 Executor 설정
         prompt = ChatPromptTemplate.from_messages([
             ("system", dynamic_prefix),
             ("human", "{input}"),
@@ -113,7 +156,7 @@ def run_odata_agent():
             print(f"\n답변:\n{response['output']}\n")
             print("-" * 60)
         except Exception as e:
-            print(f"\n에러: {e}\n")
+            print(f"\n시스템 에러: {e}\n")
 
 if __name__ == "__main__":
-    run_odata_agent()
+    run_sql_agent()
