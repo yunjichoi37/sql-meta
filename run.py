@@ -13,10 +13,10 @@ from metadata_loader import get_relevant_tables, load_table_metadata, load_relat
 warnings.filterwarnings("ignore")
 load_dotenv()
 
-MYSQL_HOST = os.getenv("MYSQL_HOST")
-MYSQL_USER = os.getenv("MYSQL_USER")
-MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
-MYSQL_DB = os.getenv("MYSQL_DB")
+DATAVERSE_SERVER = os.getenv("DATAVERSE_SERVER")
+DATAVERSE_DATABASE = os.getenv("DATAVERSE_DATABASE")
+DATAVERSE_CLIENT_ID = os.getenv("DATAVERSE_CLIENT_ID")
+DATAVERSE_CLIENT_SECRET = os.getenv("DATAVERSE_CLIENT_SECRET")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 AGENT_PREFIX = """You are a SQL expert connected to a real production database.
@@ -35,20 +35,34 @@ AGENT_PREFIX = """You are a SQL expert connected to a real production database.
                 3. Include column headers in the first line of the CSV output.
                 """
 
-ALL_TABLES = [
-    "customer", "sales_transaction", "product", "transaction_product",
-    "store", "inventory", "vendor", "customer_email", "customer_phone", "product_supply"
+ALL_TABLES = [ # 테스트 용으로 일부만..
+    "aaduser", "account", "accountleads"
 ]
 
-
 def run_sql_agent():
-    required_vars = ["MYSQL_HOST", "MYSQL_USER", "MYSQL_PASSWORD", "MYSQL_DB", "GROQ_API_KEY"]
+    required_vars = ["DATAVERSE_SERVER", "DATAVERSE_DATABASE", "DATAVERSE_CLIENT_ID", "DATAVERSE_CLIENT_SECRET", "DATAVERSE_TENANT_ID", "GROQ_API_KEY"]
+
     missing = [v for v in required_vars if not os.getenv(v)]
     if missing:
         raise EnvironmentError(f"환경변수 누락: {missing}")
 
-    db_uri = f"mysql+pymysql://{MYSQL_USER}:{quote_plus(MYSQL_PASSWORD)}@{MYSQL_HOST}/{MYSQL_DB}"
-    engine = create_engine(db_uri)
+    # ODBC 연결 문자열
+    odbc_conn_str = (
+        f"Driver={{ODBC Driver 17 for SQL Server}};"
+        f"Server={DATAVERSE_SERVER};"
+        f"Database={DATAVERSE_DATABASE};"
+        f"UID={DATAVERSE_CLIENT_ID};"
+        f"PWD={DATAVERSE_CLIENT_SECRET};"
+        f"Authentication=ActiveDirectoryServicePrincipal;"
+    )
+
+    # SQLAlchemy engine으로 감싸기
+    from sqlalchemy.engine import URL
+    connection_url = URL.create(
+        "mssql+pyodbc",
+        query={"odbc_connect": odbc_conn_str}
+    )
+    engine = create_engine(connection_url)
 
     llm = ChatGroq(
         api_key=GROQ_API_KEY,
