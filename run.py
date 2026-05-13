@@ -4,6 +4,8 @@ import struct
 import warnings
 import pyodbc
 import requests
+import glob
+from pathlib import Path
 from dotenv import load_dotenv
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -91,10 +93,11 @@ AGENT_PREFIX = """You are a SQL expert connected to a Dataverse database via TDS
                 6. Report query results as facts. Do NOT add disclaimers or caveats.
                 """
 
-ALL_TABLES = [
-    "account", "contact", "lead", "opportunity", "incident", 
-    "systemuser", "task", "quote", "salesorder", "invoice"
-]
+def get_extracted_tables():
+    table_files = glob.glob("filtered_metadata/tables/*.json")
+    return [Path(f).stem for f in table_files]
+
+ALL_TABLES = get_extracted_tables()
 
 def run_sql_agent():
     required_vars = ["DATAVERSE_SERVER", "DATAVERSE_DATABASE", "DATAVERSE_CLIENT_ID", "DATAVERSE_CLIENT_SECRET", "DATAVERSE_TENANT_ID", "GROQ_API_KEY"]

@@ -1,0 +1,15 @@
+{
+  "summary": "서비스케이스",
+  "description": "서비스케이스 테이블",
+  "columns": {
+    "new_dt_start": "X미사용_점검 시작일 (DateTime)",
+    "new_dt_start2": "점검시작일 (DateTime)",
+    "new_if_account": "[IF]거래처명 (String)",
+    "new_if_ownerid": "[IF]고객사 담당자 (String)",
+    "new_p_end": "예상납기 (Picklist)",
+    "new_p_part": "작업분류 (Picklist)",
+    "new_p_rtype": "검토의뢰항목 (Picklist)"
+  },
+  "common_filters": "",
+  "notes": ""
+}

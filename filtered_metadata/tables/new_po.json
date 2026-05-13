@@ -1,0 +1,9 @@
+{
+  "summary": "P.O관리",
+  "description": "P.O관리 테이블",
+  "columns": {
+    "new_p_ptype": "P.O단계 (Picklist)"
+  },
+  "common_filters": "",
+  "notes": ""
+}

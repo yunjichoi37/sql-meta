@@ -1,0 +1,10 @@
+{
+  "summary": "Web접수",
+  "description": "Web접수 테이블",
+  "columns": {
+    "new_p_status": "상태 (Boolean)",
+    "new_txt_subject": "제목 (String)"
+  },
+  "common_filters": "",
+  "notes": ""
+}

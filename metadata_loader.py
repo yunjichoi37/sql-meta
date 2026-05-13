@@ -2,8 +2,8 @@ import json
 from pathlib import Path
 from langchain_core.messages import HumanMessage
 
-METADATA_DIR = Path("metadata/tables")
-RELATIONSHIPS_PATH = Path("metadata/relationships.json")
+METADATA_DIR = Path("filtered_metadata/tables")
+RELATIONSHIPS_PATH = Path("filtered_metadata/relationships.json")
 
 
 def get_relevant_tables(user_question: str, llm, all_tables: list) -> list:

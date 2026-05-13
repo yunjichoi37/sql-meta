@@ -1,0 +1,10 @@
+{
+  "summary": "거래처",
+  "description": "거래처",
+  "columns": {
+    "new_txt_area": "지역구분1 (String)",
+    "new_txt_area2": "지역구분2 (String)"
+  },
+  "common_filters": "",
+  "notes": ""
+}

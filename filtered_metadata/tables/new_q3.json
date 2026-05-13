@@ -1,0 +1,16 @@
+{
+  "summary": "영업기회",
+  "description": "영업기회 테이블",
+  "columns": {
+    "new_chk_ins": "보험용 (Boolean)",
+    "new_chk_show": "쇼룸기 (Boolean)",
+    "new_d_forecasting": "xxx_Forecasting (Decimal)",
+    "new_d_maechul": "xxx_매출 (Decimal)",
+    "new_d_profit": "xxx_이익 (Decimal)",
+    "new_i_profit": "xxx_이익률(%) (Integer)",
+    "new_p_level": "가능성 (Picklist)",
+    "new_p_persent": "xxx_가능성 (Picklist)"
+  },
+  "common_filters": "",
+  "notes": ""
+}

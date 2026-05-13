@@ -1,0 +1,9 @@
+{
+  "summary": "부품사용내역",
+  "description": "부품사용내역 테이블",
+  "columns": {
+    "new_ntxt_memo": "내부메모 (Memo)"
+  },
+  "common_filters": "",
+  "notes": ""
+}
