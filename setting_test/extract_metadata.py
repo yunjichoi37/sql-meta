@@ -28,9 +28,8 @@ headers = {
 }
 
 ALL_TABLES = [
-    "account", "contact", "lead", "opportunity",
-    "incident", "systemuser", "task", "quote",
-    "salesorder", "invoice"
+    "new_ordersales", "new_po", "new_podetail", "new_serial", "new_web", "new_q1", "new_notice", "new_part", 
+    "systemuser", "cr78e_status", "new_q112", "new_safeinspection", "appointment", "new_q3", "new_q1024", "new_weeklyreport"
 ]
 
 # JSON 파일을 저장할 디렉토리 생성
