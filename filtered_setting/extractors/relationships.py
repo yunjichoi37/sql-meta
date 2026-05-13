@@ -23,8 +23,7 @@ def extract_relationships(client, tables, output_file="../filtered_metadata/rela
             from_table = rel.get("ReferencingEntity")
             to_table = rel.get("ReferencedEntity")
             
-            # 분석 대상 테이블 간의 관계만 필터링
-            if to_table in tables:
+            if from_table in tables and to_table in tables:
                 from_col = rel.get("ReferencingAttribute")
                 to_col = rel.get("ReferencedAttribute")
                 schema_name = rel.get("SchemaName")
