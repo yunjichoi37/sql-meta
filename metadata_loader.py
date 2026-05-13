@@ -1,4 +1,5 @@
 import json
+from collections import deque
 from pathlib import Path
 from langchain_core.messages import HumanMessage
 
@@ -69,27 +70,90 @@ def load_table_metadata(relevant_tables: list) -> str:
 
     return "\n".join(lines)
 
+def _build_graph(all_rels: list) -> dict:
+    """관계 리스트로 양방향 인접 그래프 구성"""
+    graph = {}
+    for r in all_rels:
+        frm, to = r["from_table"], r["to_table"]
+        graph.setdefault(frm, []).append((to, r))
+        graph.setdefault(to, []).append((frm, r))
+    return graph
+
+def _find_join_path_bfs(start_tables: list, all_rels: list, max_hops: int = 2) -> list:
+    """
+    선택된 테이블들 사이의 연결 경로를 BFS로 탐색.
+    max_hops: 경유 가능한 최대 홉 수 (2 = 중간 테이블 1개 경유)
+ 
+    직접 연결(AND 교집합)이 없을 때만 호출하는 보완용 함수.
+    """
+    graph = _build_graph(all_rels)
+    target_set = set(start_tables)
+    visited_rel_keys = set()
+    result_rels = []
+ 
+    for start in start_tables:
+        # (현재 노드, 현재까지 홉 수)
+        queue = deque([(start, 0)])
+        visited_nodes = {start}
+ 
+        while queue:
+            node, hops = queue.popleft()
+ 
+            if hops >= max_hops:
+                continue
+ 
+            for neighbor, rel in graph.get(node, []):
+                rel_key = (
+                    rel["from_table"],
+                    rel["from_col"],
+                    rel["to_table"],
+                    rel["to_col"],
+                )
+ 
+                # 이웃이 선택된 테이블 중 하나일 때만 관계 수집
+                if neighbor in target_set and rel_key not in visited_rel_keys:
+                    visited_rel_keys.add(rel_key)
+                    result_rels.append(rel)
+ 
+                if neighbor not in visited_nodes:
+                    visited_nodes.add(neighbor)
+                    queue.append((neighbor, hops + 1))
+ 
+    return result_rels
 
 def load_relationships(relevant_tables: list) -> str:
     # 3단계: 선택된 테이블 간 관계 로드
-    
+    # 우선순위 1: 직접 연결(AND 교집합) → 없으면 BFS(max_hops=2) 보완
+ 
     if not RELATIONSHIPS_PATH.exists() or not relevant_tables:
         return ""
-
+ 
     with open(RELATIONSHIPS_PATH, "r", encoding="utf-8") as f:
         all_rels = json.load(f)
-
+ 
+    relevant_set = set(relevant_tables)
+ 
+    # 1순위: from, to 둘 다 선택된 테이블인 관계만 (직접 연결)
     filtered = [
         r for r in all_rels
-        if r.get("from_table") in relevant_tables or r.get("to_table") in relevant_tables
+        if r.get("from_table") in relevant_set
+        and r.get("to_table") in relevant_set
     ]
-
+ 
+    # 직접 연결 없으면 BFS로 중간 경유 경로 탐색 (최대 2홉)
+    if not filtered:
+        print("[관계 탐색] 직접 연결 없음 → BFS 보완 (max_hops=2)")
+        filtered = _find_join_path_bfs(relevant_tables, all_rels, max_hops=2)
+ 
     if not filtered:
         return ""
-
+ 
     lines = ["[테이블 관계]"]
     for r in filtered:
         note = f" ({r['note']})" if r.get("note") else ""
-        lines.append(f"  - {r['from_table']}.{r['from_col']} → {r['to_table']}.{r['to_col']}{note}")
-
+        lines.append(
+            f"  - {r['from_table']}.{r['from_col']} → "
+            f"{r['to_table']}.{r['to_col']}{note}"
+        )
+ 
     return "\n".join(lines)
