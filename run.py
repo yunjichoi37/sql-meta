@@ -15,6 +15,7 @@ from langchain_core.tools import tool
 from langchain_groq import ChatGroq
 
 from metadata_loader import get_relevant_tables, load_table_metadata, load_relationships
+from filtered_setting.client import DataverseClient
 
 warnings.filterwarnings("ignore")
 load_dotenv()
@@ -31,21 +32,6 @@ OUTPUT_DIR = "query_outputs"    # CSV 저장 폴더
 last_query_results = {"data": None}  # tool과 run_sql_agent가 공유하는 전역 상태
 
 
-def get_dataverse_token() -> str:
-    """Azure AD 토큰 직접 발급"""
-    server_domain = DATAVERSE_SERVER.split(",")[0]
-    token_url = f"https://login.microsoftonline.com/{DATAVERSE_TENANT_ID}/oauth2/v2.0/token"
-    token_data = {
-        "client_id": DATAVERSE_CLIENT_ID,
-        "client_secret": DATAVERSE_CLIENT_SECRET,
-        "grant_type": "client_credentials",
-        "scope": f"https://{server_domain}/.default"
-    }
-    response = requests.post(token_url, data=token_data)
-    response.raise_for_status()
-    return response.json().get("access_token")
-
-
 @tool
 def execute_sql_query(sql_query: str) -> str:
     """
@@ -53,8 +39,9 @@ def execute_sql_query(sql_query: str) -> str:
     결과가 100행 이하면 텍스트로 반환하고, 100행 초과면 CSV 파일로 저장 후 경로와 미리보기를 반환합니다. (CSV는 답변 완성 후 자동 저장)
     """
     try:
-        # 1. 토큰 발급
-        token = get_dataverse_token()
+        # 1. Client 및 토큰 발급
+        client = DataverseClient()
+        token = client.get_access_token()
 
         # 2. 토큰을 ODBC용 Byte Struct로 변환
         token_bytes = token.encode("utf-16-le")
