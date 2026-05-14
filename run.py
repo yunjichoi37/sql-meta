@@ -102,15 +102,15 @@ def execute_sql_query(sql_query: str) -> str:
 
 AGENT_PREFIX = """You are a SQL expert connected to a Dataverse database via TDS endpoint.
 
-                Rules:
-                1. Always use standard T-SQL syntax.
-                2. Use the 'execute_sql_query' tool to fetch data.
-                3. Always verify column names with the provided metadata below before writing a query.
-                4. Only use the available tables and columns. Never assume or invent names.
-                5. Do NOT use markdown code blocks inside the tool input, pass the raw string.
-                6. Report query results as facts. Do NOT add disclaimers or caveats.
-                7. If the result shows only a preview, inform the user that the full data will be saved as a CSV file automatically.
-                """
+Rules:
+1. Always use standard T-SQL syntax.
+2. Use the 'execute_sql_query' tool to fetch data.
+3. Always verify column names with the provided metadata below before writing a query.
+4. Only use the available tables and columns. Never assume or invent names.
+5. Do NOT use markdown code blocks inside the tool input, pass the raw string.
+6. Report query results as facts. Do NOT add disclaimers or caveats.
+7. If the result shows only a preview, inform the user that the full data will be saved as a CSV file automatically.
+"""
 
 
 def get_extracted_tables():

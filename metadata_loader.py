@@ -18,19 +18,21 @@ def get_relevant_tables(user_question: str, llm, all_tables: list) -> list:
             with open(json_path, "r", encoding="utf-8") as f:
                 meta = json.load(f)
             summary = meta.get("summary", "설명 없음")
+            description = meta.get("description", "상세 설명 없음")
         else:
             summary = "(메타데이터 없음)"
-        table_summaries.append(f"- {table}: {summary}")
+            description = "(상세 설명 없음)"
+        table_summaries.append(f"- {table}: {summary} ({description})")
 
     prompt = f"""아래는 데이터베이스 테이블 목록과 각 테이블의 간단한 설명입니다.
     
-            {chr(10).join(table_summaries)}
+{chr(10).join(table_summaries)}
 
-            사용자 질문: {user_question}
+사용자 질문: {user_question}
 
-            이 질문에 답하려면 어떤 테이블이 필요한가요?
-            테이블 이름만 쉼표로 구분해서 답하세요. 다른 말은 하지 마세요.
-            예시: sales_transaction, product, customer"""
+이 질문에 답하려면 어떤 테이블이 필요한가요?
+테이블 이름만 쉼표로 구분해서 답하세요. 다른 말은 하지 마세요.
+예시: product, customer"""
 
     response = llm.invoke([HumanMessage(content=prompt)])
     selected = [t.strip() for t in response.content.split(",")]
