@@ -22,8 +22,8 @@ class DataverseClient:
         # 인스턴스 생성 시 자동으로 토큰을 발급받아 헤더를 구성합니다.
         self.headers = self._generate_headers()
 
-    def _generate_headers(self):
-        """MSAL을 사용하여 Access Token을 발급받고 API 요청용 헤더를 반환합니다."""
+    def get_access_token(self):
+        """MSAL을 사용하여 Access Token을 발급받아 반환합니다."""
         app = msal.ConfidentialClientApplication(
             self.client_id,
             authority=f"https://login.microsoftonline.com/{self.tenant_id}",
@@ -36,15 +36,18 @@ class DataverseClient:
             error_msg = result.get('error_description', '알 수 없는 오류 발생')
             raise Exception(f"Dataverse 토큰 발급 실패: {error_msg}")
             
-        token = result["access_token"]
-        
+        return result["access_token"]
+    
+    def _generate_headers(self):
+        """API 요청에 사용할 헤더를 구성합니다."""
+        token = self.get_access_token()
         return {
             "Authorization": f"Bearer {token}",
             "OData-MaxVersion": "4.0",
             "OData-Version": "4.0",
             "Accept": "application/json"
         }
-
+    
     def get(self, endpoint):
         """
         Dataverse Web API에 GET 요청을 보내고 JSON 결과를 반환합니다.
