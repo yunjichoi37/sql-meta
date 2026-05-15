@@ -1,202 +1,50 @@
-# run.py
+# run.py - CLI 진입점 전용
 import os
-import csv
-import struct
-import warnings
-import pyodbc
-import requests
-import glob
-from datetime import datetime
-from pathlib import Path
 from dotenv import load_dotenv
-from langchain.agents import AgentExecutor, create_tool_calling_agent
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.tools import tool
-from langchain_groq import ChatGroq
-
-from metadata_loader import get_relevant_tables, load_table_metadata, load_relationships
-from filtered_setting.client import DataverseClient
-
-warnings.filterwarnings("ignore")
 load_dotenv()
 
-DATAVERSE_SERVER = os.getenv("DATAVERSE_SERVER")
-DATAVERSE_DATABASE = os.getenv("DATAVERSE_DATABASE")
-DATAVERSE_CLIENT_ID = os.getenv("DATAVERSE_CLIENT_ID")
-DATAVERSE_CLIENT_SECRET = os.getenv("DATAVERSE_CLIENT_SECRET")
-DATAVERSE_TENANT_ID = os.getenv("DATAVERSE_TENANT_ID")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-
-MAX_ROWS_IN_CONTEXT = 100       # 이 이하면 텍스트로 반환
-OUTPUT_DIR = "query_outputs"    # CSV 저장 폴더
-last_query_results = {"data": None}  # tool과 run_sql_agent가 공유하는 전역 상태
+from agent_core import run_query
 
 
-@tool
-def execute_sql_query(sql_query: str) -> str:
-    """
-    Dataverse TDS 엔드포인트에 T-SQL 쿼리를 실행하고 결과를 반환합니다.
-    결과가 100행 이하면 텍스트로 반환하고, 100행 초과면 CSV 파일로 저장 후 경로와 미리보기를 반환합니다. (CSV는 답변 완성 후 자동 저장)
-    """
-    try:
-        # 1. Client 및 토큰 발급
-        client = DataverseClient()
-        token = client.get_access_token()
-
-        # 2. 토큰을 ODBC용 Byte Struct로 변환
-        token_bytes = token.encode("utf-16-le")
-        token_struct = struct.pack(f"<I{len(token_bytes)}s", len(token_bytes), token_bytes)
-        SQL_COPT_SS_ACCESS_TOKEN = 1256 # ODBC 토큰 주입 옵션 번호
-
-        # 3. 연결
-        conn_str = (
-            f"Driver={{ODBC Driver 17 for SQL Server}};"
-            f"Server={DATAVERSE_SERVER};"
-            f"Database={DATAVERSE_DATABASE};"
-            f"Encrypt=yes;"
-        )
-
-        conn = pyodbc.connect(conn_str, attrs_before={SQL_COPT_SS_ACCESS_TOKEN: token_struct}, autocommit=True)
-        cursor = conn.cursor()
-        cursor.execute(sql_query)
-
-        if cursor.description is None:
-            conn.close()
-            return "실행 완료 (반환된 데이터 없음)"
-
-        columns = [col[0] for col in cursor.description]
-        rows = cursor.fetchall()
-        results = [dict(zip(columns, row)) for row in rows]
-        conn.close()
-
-        # 4. 행 수에 따라 분기
-        if len(results) <= MAX_ROWS_IN_CONTEXT:
-            # 100행 이하: 텍스트로 전달, 전역 초기화
-            last_query_results["data"] = None
-            return str(results)
- 
-        # 100행 초과: 전역에 보관, 미리보기만 LLM에 전달
-        last_query_results["data"] = results
-        preview = results[:5]
-        return (
-            f"쿼리 결과: 총 {len(results)}행 (데이터가 많아 상위 5행만 표시)\n"
-            f"{preview}"
-        )
-
-    except Exception as e:
-        return f"SQL 실행 에러: {e}\n이 에러를 바탕으로 쿼리를 수정해서 다시 시도하세요."
-
-
-AGENT_PREFIX = """You are a SQL expert connected to a Dataverse database via TDS endpoint.
-
-Rules:
-1. Always use standard T-SQL syntax.
-2. Use the 'execute_sql_query' tool to fetch data.
-3. Always verify column names with the provided metadata below before writing a query.
-4. Only use the available tables and columns. Never assume or invent names.
-5. Do NOT use markdown code blocks inside the tool input, pass the raw string.
-6. Report query results as facts. Do NOT add disclaimers or caveats.
-7. If the result shows only a preview, inform the user that the full data will be saved as a CSV file automatically.
-"""
-
-
-def get_extracted_tables():
-    table_files = glob.glob("filtered_metadata/tables/*.json")
-    return [Path(f).stem for f in table_files]
-
-
-ALL_TABLES = get_extracted_tables()
-
-
-def save_csv_if_needed() -> str | None:
-    """last_query_results에 데이터가 있으면 CSV로 저장하고 경로 반환"""
-    data = last_query_results.get("data")
-    if not data:
-        return None
- 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    csv_path = os.path.join(OUTPUT_DIR, f"result_{timestamp}.csv")
- 
-    with open(csv_path, "w", newline="", encoding="utf-8-sig") as f:
-        writer = csv.DictWriter(f, fieldnames=data[0].keys())
-        writer.writeheader()
-        writer.writerows(data)
- 
-    last_query_results["data"] = None  # 다음 질문을 위해 초기화
-    return csv_path
-
-
-def run_sql_agent():
-    required_vars = ["DATAVERSE_SERVER", "DATAVERSE_DATABASE", "DATAVERSE_CLIENT_ID", "DATAVERSE_CLIENT_SECRET", "DATAVERSE_TENANT_ID", "GROQ_API_KEY"]
-    missing = [v for v in required_vars if not os.getenv(v)]
+def check_env() -> None:
+    required = ["DATAVERSE_SERVER", "DATAVERSE_DATABASE", "DATAVERSE_CLIENT_ID", "DATAVERSE_CLIENT_SECRET", "DATAVERSE_TENANT_ID", "GROQ_API_KEY"]
+    missing = [v for v in required if not os.getenv(v)]
     if missing:
         raise EnvironmentError(f"환경변수 누락: {missing}")
 
-    llm = ChatGroq(
-        api_key=GROQ_API_KEY,
-        model_name="llama-3.3-70b-versatile",
-        # model="openai/gpt-oss-120b",
-        temperature=0
-    )
 
-    tools = [execute_sql_query]
 
+def main() -> None:
+    check_env()
+    print("Makino Dataverse SQL Agent (터미널 모드)")
+    print("종료하려면 'exit' 또는 'quit' 입력\n")
+ 
     while True:
         user_input = input("질문: ").strip()
-        if user_input.lower() in ["exit", "quit"]:
+        if user_input.lower() in ("exit", "quit"):
             print("채팅 종료")
             break
         if not user_input:
             continue
-
-        relevant_tables = get_relevant_tables(user_input, llm, ALL_TABLES)
-        print(f"\n[선택된 테이블] {relevant_tables}")
-
-        if not relevant_tables:
+ 
+        result = run_query(user_input)
+ 
+        print(f"\n[선택된 테이블] {result['relevant_tables']}")
+ 
+        if not result["relevant_tables"]:
             print("관련 테이블을 찾지 못했습니다.")
-            continue
-
-        table_meta = load_table_metadata(relevant_tables)
-        rel_meta = load_relationships(relevant_tables)
-
-        dynamic_prefix = AGENT_PREFIX
-        if table_meta:
-            dynamic_prefix += f"\n\n{table_meta}"
-        if rel_meta:
-            dynamic_prefix += f"\n\n{rel_meta}"
-        print(table_meta)
-        print(rel_meta)
-
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", dynamic_prefix),
-            ("human", "{input}"),
-            MessagesPlaceholder("agent_scratchpad"),
-        ])
-
-        agent = create_tool_calling_agent(llm, tools, prompt)
-        agent_executor = AgentExecutor(
-            agent=agent, 
-            tools=tools, 
-            verbose=True, 
-            handle_parsing_errors=True
-        )
-
-        try:
-            print("\n[Agent 추론 시작]")
-            response = agent_executor.invoke({"input": user_input})
-            print(f"\n답변:\n{response['output']}\n")
-
-            # Agent 답변 완성 후 CSV 저장 (한 번만)
-            csv_path = save_csv_if_needed()
-            if csv_path:
-                print(f"[CSV 저장 완료] {csv_path}")
-            
             print("-" * 60)
-        except Exception as e:
-            print(f"\n시스템 에러: {e}\n")
-            last_query_results["data"] = None
-
-
+            continue
+ 
+        if "error" in result:
+            print(f"\n시스템 에러: {result['error']}\n")
+        else:
+            print(f"\n답변:\n{result['answer']}\n")
+            if result["csv_path"]:
+                print(f"[CSV 저장 완료] {result['csv_path']}")
+ 
+        print("-" * 60)
+ 
+ 
 if __name__ == "__main__":
-    run_sql_agent()
+    main()
