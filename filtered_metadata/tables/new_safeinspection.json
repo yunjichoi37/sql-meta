@@ -2,14 +2,14 @@
     "summary":  "안전점검표지판",
     "description":  "",
     "columns":  {
-                    "createdby":  "만든 사람. 레코드를 만든 사용자의 고유 식별자. (Lookup)",
+                    "createdby":  "만든 사람. 레코드를 만든 사용자의 고유 식별자. (Lookup) → 한글 조회 시 createdbyname 사용",
                     "new_safeinspectionid":  "안전점검표지판. 엔터티 인스턴스의 고유 식별자 (Uniqueidentifier)",
-                    "new_l_serial":  "S/N (Lookup)",
-                    "new_l_q1":  "고객사 (Lookup)",
+                    "new_l_serial":  "S/N (Lookup) → 한글 조회 시 new_l_serialname 사용",
+                    "new_l_q1":  "고객사 (Lookup) → 한글 조회 시 new_l_q1name 사용",
                     "new_column_17623197428199527":  "표지판번호 (String)",
                     "createdon":  "만든 날짜. 레코드를 만든 날짜 및 시간. (DateTime)",
-                    "owningbusinessunit":  "담당 사업부. 레코드 담당 사업부의 고유 식별자 (Lookup)",
-                    "new_l_service":  "서비스케이스 (Lookup)"
+                    "owningbusinessunit":  "담당 사업부. 레코드 담당 사업부의 고유 식별자 (Lookup) → 한글 조회 시 owningbusinessunitname 사용",
+                    "new_l_service":  "서비스케이스 (Lookup) → 한글 조회 시 new_l_servicename 사용"
                 },
     "common_filters":  "",
     "notes":  ""

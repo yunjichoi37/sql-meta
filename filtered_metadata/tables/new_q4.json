@@ -2,15 +2,15 @@
     "summary":  "영업문의",
     "description":  "",
     "columns":  {
-                    "new_p_type":  "문의수단 (Picklist)",
+                    "new_p_type":  "문의수단 (Picklist) → 한글 조회 시 new_p_typename 사용",
                     "new_name":  "주제. 사용자 지정 엔터티의 이름입니다. (String)",
                     "new_q4id":  "영업문의. 엔터티 인스턴스의 고유 식별자 (Uniqueidentifier)",
-                    "new_l_q3":  "영업기회 (Lookup)",
-                    "new_l_q1":  "거래처 (Lookup)",
+                    "new_l_q3":  "영업기회 (Lookup) → 한글 조회 시 new_l_q3name 사용",
+                    "new_l_q1":  "거래처 (Lookup) → 한글 조회 시 new_l_q1name 사용",
                     "new_ntxt_note":  "문의내용 (Memo)",
                     "createdon":  "만든 날짜. 레코드를 만든 날짜 및 시간입니다. (DateTime)",
-                    "ownerid":  "담당자. 담당자 ID입니다. (Owner)",
-                    "new_l_contact":  "연락처 (Lookup)"
+                    "ownerid":  "담당자. 담당자 ID입니다. (Owner) → 한글 조회 시 owneridname 사용",
+                    "new_l_contact":  "연락처 (Lookup) → 한글 조회 시 new_l_contactname 사용"
                 },
     "common_filters":  "",
     "notes":  ""

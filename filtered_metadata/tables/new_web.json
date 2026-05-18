@@ -11,9 +11,8 @@
                     "new_ntxt_note":  "내용 (Memo)",
                     "new_txt_q1024":  "기계모델명 (String)",
                     "createdon":  "만든 날짜. 레코드를 만든 날짜 및 시간. (DateTime)",
-                    "new_p_stype":  "서비스구분 (Picklist)",
-                    "new_p_status":  "상태 (Boolean)",
-                    "new_txt_subject": "제목 (String)",
+                    "new_p_stype":  "서비스구분 (Picklist) → 한글 조회 시 new_p_stypename 사용",
+                    "new_p_status":  "상태 (Boolean) → 한글 조회 시 new_p_statusname 사용",
                     "new_name":  "접수번호. 사용자 지정 엔터티의 이름입니다. (String)",
                     "new_dt_issue":  "알람발생일 (DateTime)"
                 },
