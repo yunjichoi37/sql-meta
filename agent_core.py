@@ -100,16 +100,16 @@ def execute_sql_query(sql_query: str) -> str:
             f"Encrypt=yes;"
         )
 
-        conn = pyodbc.connect(conn_str, attrs_before={SQL_COPT_SS_ACCESS_TOKEN: token_struct}, autocommit=True)
-        cursor = conn.cursor()
-        cursor.execute(sql_query)
+        conn = pyodbc.connect(conn_str, attrs_before={SQL_COPT_SS_ACCESS_TOKEN: token_struct}, autocommit=True) # DB 연결시 토큰 주입
+        cursor = conn.cursor() # cursor 객체 생성
+        cursor.execute(sql_query) # cursor가 DB에서 쿼리를 실행시킨다. 실행 후 cursor는 결과 집합의 첫 번째 행을 가리키게 된다.
 
         if cursor.description is None:
             conn.close()
             return "실행 완료 (반환된 데이터 없음)"
 
-        columns = [col[0] for col in cursor.description]
-        rows = cursor.fetchall()
+        columns = [col[0] for col in cursor.description] # cursor의 metadata인 description에서 컬럼 이름을 추출한다.
+        rows = cursor.fetchall() # fetch + all: 남은 데이터를 모두 가져온다.
         results = [dict(zip(columns, row)) for row in rows]
         conn.close()
 
@@ -153,16 +153,16 @@ def save_csv_if_needed() -> str | None:
 def build_agent_executor(dynamic_prefix: str) -> AgentExecutor:
     """주어진 시스템 프롬프트로 AgentExecutor를 생성한다."""
     llm   = get_llm()
-    tools = [execute_sql_query]
+    tools = [execute_sql_query] # 추후 tool 추가 가능(차트 그리기 등)
  
     prompt = ChatPromptTemplate.from_messages([
-        ("system", dynamic_prefix),
-        ("human", "{input}"),
-        MessagesPlaceholder("agent_scratchpad"),
+        ("system", dynamic_prefix), # 테이블 메타데이터
+        ("human", "{input}"), # 질문
+        MessagesPlaceholder("agent_scratchpad"), # 쿼리 결과가 동적으로 저장될 곳
     ])
  
-    agent = create_tool_calling_agent(llm, tools, prompt)
-    return AgentExecutor(
+    agent = create_tool_calling_agent(llm, tools, prompt) # 어떤 tool을 호출하여 무엇을 할지 판단하는 객체 생성
+    return AgentExecutor( # 에이전트의 생각을 행동으로 실행해주는 시스템
         agent=agent,
         tools=tools,
         verbose=True,
@@ -208,10 +208,10 @@ def run_query(user_input: str, callbacks: list | None = None,) -> dict:
     print(table_meta)
     print(rel_meta)
  
-    agent_executor = build_agent_executor(dynamic_prefix)
+    agent_executor = build_agent_executor(dynamic_prefix) # agent 생성
  
     invoke_config = {}
-    if callbacks:
+    if callbacks: # callback은 agent가 어떤 일을 하고 있는지 실시간으로 보여주는 용도. app.py에서 StreamlitCallbackHandler가 전달된다.
         invoke_config["callbacks"] = callbacks
  
     try:
