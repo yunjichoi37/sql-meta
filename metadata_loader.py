@@ -15,7 +15,7 @@ def get_relevant_tables(user_question: str, llm, all_tables: list) -> list:
     for table in all_tables:
         json_path = METADATA_DIR / f"{table}.json"
         if json_path.exists():
-            with open(json_path, "r", encoding="utf-8") as f:
+            with open(json_path, "r", encoding="utf-8-sig") as f:
                 meta = json.load(f)
             summary = meta.get("summary", "설명 없음")
             description = meta.get("description", "상세 설명 없음")
@@ -53,7 +53,7 @@ def load_table_metadata(relevant_tables: list) -> str:
             lines.append(f"\n## {table}\n  (메타데이터 파일 없음)")
             continue
 
-        with open(json_path, "r", encoding="utf-8") as f:
+        with open(json_path, "r", encoding="utf-8-sig") as f:
             meta = json.load(f)
 
         lines.append(f"\n## {table}")
@@ -130,7 +130,7 @@ def load_relationships(relevant_tables: list) -> str:
     if not RELATIONSHIPS_PATH.exists() or not relevant_tables:
         return ""
  
-    with open(RELATIONSHIPS_PATH, "r", encoding="utf-8") as f:
+    with open(RELATIONSHIPS_PATH, "r", encoding="utf-8-sig") as f:
         all_rels = json.load(f)
  
     relevant_set = set(relevant_tables)
