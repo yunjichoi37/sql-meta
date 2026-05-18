@@ -1,9 +1,24 @@
-{
-  "summary": "부품사용내역",
-  "description": "부품사용내역 테이블",
-  "columns": {
-    "new_ntxt_memo": "내부메모 (Memo)"
-  },
-  "common_filters": "",
-  "notes": ""
+﻿{
+    "summary":  "부품사용내역",
+    "description":  "",
+    "columns":  {
+                    "new_ntxt_memo":  "내부메모 (Memo)",
+                    "new_chk_collect":  "회수제품 (Boolean)",
+                    "new_l_q1024":  "부품코드 (Lookup)",
+                    "new_l_q112":  "서비스케이스 (Lookup)",
+                    "new_d_price":  "단가 (Decimal)",
+                    "new_i_qty":  "수량 (Integer)",
+                    "new_txt_note1":  "비고 (String)",
+                    "new_l_contact":  "고객사 담당자 (Lookup)",
+                    "new_l_q1":  "고객사 (Lookup)",
+                    "new_partid":  "부품사용내역. 엔터티 인스턴스의 고유 식별자 (Uniqueidentifier)",
+                    "new_txt_fcode":  "부품코드(외부) (String)",
+                    "createdon":  "만든 날짜. 레코드를 만든 날짜 및 시간입니다. (DateTime)",
+                    "new_txt_part":  "부품형식 (String)",
+                    "new_name":  "부품명. 사용자 지정 엔터티의 이름입니다. (String)",
+                    "new_d_samt":  "합계액 (Decimal)",
+                    "new_chk_emphasize":  "강조여부 (Boolean)"
+                },
+    "common_filters":  "",
+    "notes":  ""
 }

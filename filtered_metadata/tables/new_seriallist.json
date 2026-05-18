@@ -1,0 +1,31 @@
+﻿{
+    "summary":  "Serial설치정보",
+    "description":  "",
+    "columns":  {
+                    "new_dt_createdon":  "이설등록일자 (DateTime)",
+                    "new_txt_atc":  "ATC (String)",
+                    "new_move_date":  "이설일 (DateTime)",
+                    "new_txt_system":  "시스템 (String)",
+                    "new_dt_etd":  "ETD (DateTime)",
+                    "new_l_q1":  "거래처(전) (Lookup)",
+                    "new_seriallistid":  "Serial이설. 엔터티 인스턴스의 고유 식별자 (Uniqueidentifier)",
+                    "new_l_q1024":  "제품코드 (Lookup)",
+                    "new_txt_note":  "비고 (String)",
+                    "new_l_forwarder":  "Forwarder (Lookup)",
+                    "ownerid":  "담당자. 담당자 ID입니다. (Owner)",
+                    "new_txt_number":  "제조번호 (String)",
+                    "new_txt_name":  "제품명 (String)",
+                    "createdon":  "만든 날짜. 레코드를 만든 날짜 및 시간. (DateTime)",
+                    "new_p_itype":  "이설타입 (Picklist)",
+                    "new_p_delivery":  "Delivery (Picklist)",
+                    "new_txt_scode1":  "서비스코드 (String)",
+                    "new_name":  "Serial정보(전). 사용자 지정 엔터티의 이름입니다. (String)",
+                    "new_l_serial":  "Serial정보(현) (Lookup)",
+                    "new_txt_location":  "Location (String)",
+                    "new_dt_set":  "설치일 (DateTime)",
+                    "new_dt_eta":  "ETA (DateTime)",
+                    "new_if_code":  "[IF]제품코드 (String)"
+                },
+    "common_filters":  "",
+    "notes":  ""
+}

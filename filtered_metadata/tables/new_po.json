@@ -1,9 +1,19 @@
-{
-  "summary": "P.O관리",
-  "description": "P.O관리 테이블",
-  "columns": {
-    "new_p_ptype": "P.O단계 (Picklist)"
-  },
-  "common_filters": "",
-  "notes": ""
+﻿{
+    "summary":  "P.O관리",
+    "description":  "",
+    "columns":  {
+                    "new_name":  "P.O번호. 사용자 지정 엔터티의 이름입니다. (String)",
+                    "new_dt_order":  "P.O요청일 (DateTime)",
+                    "ownerid":  "담당자. 담당자 ID입니다. (Owner)",
+                    "new_poid":  "P.O관리. 엔터티 인스턴스의 고유 식별자 (Uniqueidentifier)",
+                    "new_stock_in":  "입고예정일 (DateTime)",
+                    "new_l_q1":  "거래처 (Lookup)",
+                    "new_d_amt":  "P.O합계금액 (Decimal)",
+                    "new_ntxt_note":  "비고 (Memo)",
+                    "new_l_serial":  "Serial (Lookup)",
+                    "createdon":  "만든 날짜. 레코드를 만든 날짜 및 시간. (DateTime)",
+                    "new_p_ptype":  "P.O단계 (Picklist)"
+                },
+    "common_filters":  "",
+    "notes":  ""
 }
