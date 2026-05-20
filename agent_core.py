@@ -50,6 +50,18 @@ Rules:
 5. Do NOT use markdown code blocks inside the tool input, pass the raw string.
 6. Report query results as facts. Do NOT add disclaimers or caveats.
 7. If the result shows only a preview, inform the user that the full data will be saved as a CSV file automatically.
+
+Metadata Format:
+- col_name(Type) | Label | VirtualColumn | Description
+- Type에 * 표시된 컬럼은 VirtualColumn으로 한글 텍스트 조회 가능
+- 예: statuscode(Picklist*) | 상태코드 | statuscodename → SELECT statuscodename 사용
+
+Dataverse Common Columns (available in ALL tables):
+- statecode(State*) | 활성여부 | statecodename | 0=활성 1=비활성
+- statuscode(Picklist*) | 상태코드 | statuscodename
+- createdon(DateTime) | 생성일
+- modifiedon(DateTime) | 수정일
+- ownerid(Owner*) | 담당자 | owneridname
 """
 
 
@@ -170,6 +182,12 @@ def build_agent_executor(dynamic_prefix: str) -> AgentExecutor:
         return_intermediate_steps=True,
     )
 
+import tiktoken
+
+enc = tiktoken.get_encoding("cl100k_base")
+
+def count_tokens(text: str) -> int:
+    return len(enc.encode(text))
 
 def load_metadata_for_query(user_input: str) -> tuple[list[str], str, str]:
     """
@@ -180,6 +198,9 @@ def load_metadata_for_query(user_input: str) -> tuple[list[str], str, str]:
     relevant_tables = get_relevant_tables(user_input, llm, ALL_TABLES)
     table_meta = load_table_metadata(relevant_tables)
     rel_meta = load_relationships(relevant_tables)
+
+    print(f"[TOKEN] table_meta: {count_tokens(table_meta)}")
+    print(f"[TOKEN] rel_meta:   {count_tokens(rel_meta)}")
     return relevant_tables, table_meta, rel_meta
 
 
