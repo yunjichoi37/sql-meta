@@ -302,17 +302,17 @@
     },
     {
         "from_table":  "new_serial",
-        "from_col":  "new_l_ordersales",
-        "to_table":  "new_ordersales",
-        "to_col":  "new_ordersalesid",
-        "note":  "Dataverse N:1 관계 - new_new_ordersales_new_serial_l_ordersales (LEFT JOIN 권장)"
-    },
-    {
-        "from_table":  "new_serial",
         "from_col":  "new_l_q1",
         "to_table":  "new_q1",
         "to_col":  "new_q1id",
         "note":  "Dataverse N:1 관계 - new_new_q1_new_serial_l_q1 (LEFT JOIN 권장)"
+    },
+    {
+        "from_table":  "new_serial",
+        "from_col":  "new_l_ordersales",
+        "to_table":  "new_ordersales",
+        "to_col":  "new_ordersalesid",
+        "note":  "Dataverse N:1 관계 - new_new_ordersales_new_serial_l_ordersales (LEFT JOIN 권장)"
     },
     {
         "from_table":  "new_serial",
