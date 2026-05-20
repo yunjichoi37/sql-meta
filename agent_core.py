@@ -64,6 +64,32 @@ Dataverse Common Columns (available in ALL tables):
 - ownerid(Owner*) | 담당자 | owneridname
 """
 
+# ------------- 로그 관련 설정  -------------
+import sys
+
+os.makedirs("logs", exist_ok=True)
+log_filename = datetime.now().strftime("logs/%Y%m%d_%H%M%S.log")
+
+class DualLogger:
+    """터미널 출력과 파일 저장을 동시에 수행하는 로거 클래스"""
+    def __init__(self, filename):
+        self.terminal = sys.stdout
+        self.log = open(filename, "a", encoding="utf-8")
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+        self.log.flush()  # 버퍼에 머물지 않고 즉시 파일에 쓰도록 설정
+
+    def flush(self):
+        self.terminal.flush()
+        self.log.flush()
+
+# 표준 출력과 에러 출력을 DualLogger로 리다이렉션
+sys.stdout = DualLogger(log_filename)
+sys.stderr = sys.stdout
+# -----------------------------------------
+
 
 def get_extracted_tables() -> list[str]:
     table_files = glob.glob("filtered_metadata/tables/*.json")
@@ -239,6 +265,7 @@ def run_query(user_input: str, callbacks: list | None = None,) -> dict:
         response           = agent_executor.invoke({"input": user_input}, invoke_config)
         answer             = response["output"]
         intermediate_steps = response.get("intermediate_steps", [])
+        print(f"[STEPS] 총 tool 호출 횟수: {len(intermediate_steps)}")
         csv_path           = save_csv_if_needed()
  
         return {

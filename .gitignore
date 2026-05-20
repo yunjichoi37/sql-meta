@@ -4,3 +4,4 @@ venv/
 chroma_db/
 __pycache__/
 query_outputs/
+logs/
