@@ -6,6 +6,8 @@ from langchain_core.messages import HumanMessage
 METADATA_DIR = Path("filtered_metadata/tables")
 RELATIONSHIPS_PATH = Path("filtered_metadata/relationships.json")
 
+# name 힌트가 필요한 타입 목록
+NAME_HINT_TYPES = {"Picklist", "State", "Lookup", "Customer", "Owner", "Boolean"}
 
 def get_relevant_tables(user_question: str, llm, all_tables: list) -> list:
     # 1단계: 각 테이블의 summary만 보고 필요한 테이블 선택
@@ -39,38 +41,83 @@ def get_relevant_tables(user_question: str, llm, all_tables: list) -> list:
     return [t for t in selected if t in all_tables]
 
 
+def _parse_column_line(col: str, meta_str: str) -> str:
+    """
+    JSON에 저장된 컬럼 메타 문자열을 파싱해서
+    col_name(Type*) | Label | VirtualColumn | Description
+    형식의 한 줄로 변환한다.
+ 
+    JSON 저장 형식 (PowerShell 스크립트 기준):
+      "Label: 상태코드 | Type: Picklist | Desc: 처리 단계 | VirtualColumn: statuscodename (For Korean text display)"
+      "Label: 생성일 | Type: DateTime"
+    """
+    label = ""
+    col_type = ""
+    description = ""
+    virtual_col = ""
+ 
+    for part in meta_str.split(" | "):
+        part = part.strip()
+        if part.startswith("Label:"):
+            label = part[len("Label:"):].strip()
+        elif part.startswith("Type:"):
+            col_type = part[len("Type:"):].strip()
+        elif part.startswith("Desc:"):
+            description = part[len("Desc:"):].strip()
+        elif part.startswith("VirtualColumn:"):
+            # "VirtualColumn: statuscodename (For Korean text display)" 에서 컬럼명만 추출
+            virtual_col = part[len("VirtualColumn:"):].strip().split()[0]
+ 
+    # Type에 * 표시: NAME_HINT_TYPES에 해당하는 타입
+    type_str = f"{col_type}*" if col_type in NAME_HINT_TYPES else col_type
+ 
+    # col_name(Type) | Label | VirtualColumn | Description
+    # VirtualColumn / Description 없으면 뒤쪽 파이프 생략
+    parts = [f"{col}({type_str})", label]
+    if virtual_col or description:
+        parts.append(virtual_col) # 없으면 빈 문자열: 파이프만 남음
+    if description:
+        parts.append(description)
+ 
+    return " | ".join(parts)
+
+
 def load_table_metadata(relevant_tables: list) -> str:
     # 2단계: 선택된 테이블의 세부 메타 정보 로드
     
     if not relevant_tables:
         return ""
 
-    lines = ["[테이블 메타데이터]"]
+    lines = []
 
     for table in relevant_tables:
         json_path = METADATA_DIR / f"{table}.json"
         if not json_path.exists():
-            lines.append(f"\n## {table}\n  (메타데이터 파일 없음)")
+            lines.append(f"[Table: {table}]")
+            lines.append("  (메타데이터 파일 없음)")
+            lines.append("")
             continue
-
+ 
         with open(json_path, "r", encoding="utf-8-sig") as f:
             meta = json.load(f)
+ 
+        summary = meta.get("summary", "") or meta.get("description", "")
+        header  = f"[Table: {summary} ({table})]" if summary else f"[Table: {table}]"
+        lines.append(header)
+ 
+        for col, meta_str in meta.get("columns", {}).items():
+            lines.append(_parse_column_line(col, meta_str))
+ 
+        # common_filters / notes 는 값이 있을 때만 출력
+        if meta.get("common_filters"):
+            lines.append(f"Filter: {meta['common_filters']}")
+        if meta.get("notes"):
+            lines.append(f"Notes: {meta['notes']}")
+ 
+        lines.append("")  # 테이블 간 빈 줄
+ 
+    return "\n".join(lines).rstrip()
 
-        lines.append(f"\n## {table}")
-        lines.append(f"설명: {meta.get('description', meta.get('summary', ''))}")
-
-        if "columns" in meta:
-            lines.append("컬럼:")
-            for col, desc in meta["columns"].items():
-                lines.append(f"  - {col}: {desc}")
-
-        if "common_filters" in meta:
-            lines.append(f"기본 필터 조건: {meta['common_filters']}")
-
-        if "notes" in meta:
-            lines.append(f"주의사항: {meta['notes']}")
-
-    return "\n".join(lines)
 
 def _build_graph(all_rels: list) -> dict:
     """관계 리스트로 양방향 인접 그래프 구성"""
@@ -140,6 +187,7 @@ def load_relationships(relevant_tables: list) -> str:
         r for r in all_rels
         if r.get("from_table") in relevant_set
         and r.get("to_table") in relevant_set
+        and r.get("from_table") != r.get("to_table") # self join 제외
     ]
  
     # 직접 연결 없으면 BFS로 중간 경유 경로 탐색 (최대 2홉)
@@ -150,12 +198,11 @@ def load_relationships(relevant_tables: list) -> str:
     if not filtered:
         return ""
  
-    lines = ["[테이블 관계]"]
+    lines = ["[Joins]"]
     for r in filtered:
-        note = f" ({r['note']})" if r.get("note") else ""
         lines.append(
-            f"  - {r['from_table']}.{r['from_col']} → "
-            f"{r['to_table']}.{r['to_col']}{note}"
+            f"{r['from_table']} LEFT JOIN {r['to_table']} "
+            f"ON {r['from_table']}.{r['from_col']} = {r['to_table']}.{r['to_col']}"
         )
  
     return "\n".join(lines)
