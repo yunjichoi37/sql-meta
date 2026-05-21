@@ -36,7 +36,7 @@ DATAVERSE_CLIENT_SECRET = os.getenv("DATAVERSE_CLIENT_SECRET")
 DATAVERSE_TENANT_ID = os.getenv("DATAVERSE_TENANT_ID")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-MAX_ROWS_IN_CONTEXT = 100       # 이 이하면 텍스트로 반환
+MAX_ROWS_IN_CONTEXT = 10       # 이 이하면 텍스트로 반환
 OUTPUT_DIR = "query_outputs"    # CSV 저장 폴더
 last_query_results = {"data": None}  # tool과 run_sql_agent가 공유하는 전역 상태
 
