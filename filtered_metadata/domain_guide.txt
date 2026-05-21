@@ -1,0 +1,13 @@
+[Domain Guide]
+- 고객사/업체/회사 → new_q1 (사람 이름이 필요하면 contact와 JOIN)
+- 담당자/엔지니어/의사결정권자 등 사람 이름 → contact (소속 회사가 필요하면 new_q1과 JOIN)
+- 영업 문의 → new_q4
+- 진행중인 프로젝트/기회/견적 → new_q3
+- 계약/수주/매출 → new_ordersales
+- 고객 전화 접수 → new_call, 웹 접수 → new_web
+- A/S/유지보수/고장수리 본건 → new_q112 (서비스케이스)
+- 엔지니어 방문일정/이동경로 → appointment
+- 수리에 사용된 부품/단가 조회 → new_part
+- 부품 구매/발주/주문 → new_po
+- 설치 장비/기계/호기/S/N → new_serial
+- 안전점검 → new_safeinspection

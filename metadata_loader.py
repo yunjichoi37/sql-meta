@@ -5,6 +5,7 @@ from langchain_core.messages import HumanMessage
 
 METADATA_DIR = Path("filtered_metadata/tables")
 RELATIONSHIPS_PATH = Path("filtered_metadata/relationships.json")
+DOMAIN_GUIDE_PATH = Path("filtered_metadata/domain_guide.txt")
 
 # name 힌트가 필요한 타입 목록
 NAME_HINT_TYPES = {"Picklist", "State", "Lookup", "Customer", "Owner", "Boolean"}
@@ -12,7 +13,10 @@ NAME_HINT_TYPES = {"Picklist", "State", "Lookup", "Customer", "Owner", "Boolean"
 def get_relevant_tables(user_question: str, llm, all_tables: list) -> list:
     # 1단계: 각 테이블의 summary만 보고 필요한 테이블 선택
     # 메타 파일 없으면 테이블명만으로 fallback
-    
+    domain_guide = ""
+    if DOMAIN_GUIDE_PATH.exists():
+        domain_guide = DOMAIN_GUIDE_PATH.read_text(encoding="utf-8")
+
     table_summaries = []
     for table in all_tables:
         json_path = METADATA_DIR / f"{table}.json"
@@ -26,7 +30,9 @@ def get_relevant_tables(user_question: str, llm, all_tables: list) -> list:
             description = "(상세 설명 없음)"
         table_summaries.append(f"- {table}: {summary} ({description})")
 
-    prompt = f"""아래는 데이터베이스 테이블 목록과 각 테이블의 간단한 설명입니다.
+    prompt = f"""{domain_guide}
+
+아래는 데이터베이스 테이블 목록과 각 테이블의 간단한 설명입니다.
     
 {chr(10).join(table_summaries)}
 
