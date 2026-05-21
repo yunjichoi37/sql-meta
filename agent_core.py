@@ -26,6 +26,11 @@ from langchain_groq import ChatGroq
 from metadata_loader import get_relevant_tables, load_table_metadata, load_relationships
 from filtered_setting.client import DataverseClient
 
+import re
+import json
+import pandas as pd
+from langchain_core.messages import HumanMessage
+
 warnings.filterwarnings("ignore")
 load_dotenv()
 
@@ -50,6 +55,7 @@ Rules:
 5. Do NOT use markdown code blocks inside the tool input, pass the raw string.
 6. Report query results as facts. Do NOT add disclaimers or caveats.
 7. If the result shows only a preview, inform the user that the full data will be saved as a CSV file automatically.
+8. Always alias aggregate functions. (e.g. COUNT(*) AS count, SUM(amount) AS total)
 
 Metadata Format:
 - col_name(Type) | Label | VirtualColumn | Description
@@ -152,13 +158,10 @@ def execute_sql_query(sql_query: str) -> str:
         conn.close()
 
         # 4. 행 수에 따라 분기
-        if len(results) <= MAX_ROWS_IN_CONTEXT:
-            # 100행 이하: 텍스트로 전달, 전역 초기화
-            last_query_results["data"] = None
-            return str(results)
- 
-        # 100행 초과: 전역에 보관, 미리보기만 LLM에 전달
         last_query_results["data"] = results
+        if len(results) <= MAX_ROWS_IN_CONTEXT:
+            return str(results) # 10행 이하면 llm에 전체 결과 전달
+        
         preview = results[:5]
         return (
             f"쿼리 결과: 총 {len(results)}행 (데이터가 많아 상위 5행만 표시)\n"
@@ -166,26 +169,30 @@ def execute_sql_query(sql_query: str) -> str:
         )
 
     except Exception as e:
+        last_query_results["data"] = None 
         return f"SQL 실행 에러: {e}\n이 에러를 바탕으로 쿼리를 수정해서 다시 시도하세요."
 
 
-def save_csv_if_needed() -> str | None:
+def save_csv_if_needed() -> tuple[str | None, pd.DataFrame | None]:
     """last_query_results에 데이터가 있으면 CSV로 저장하고 경로 반환"""
+    
     data = last_query_results.get("data")
     if not data:
-        return None
- 
+        return None, None
+
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     csv_path = os.path.join(OUTPUT_DIR, f"result_{timestamp}.csv")
- 
+
     with open(csv_path, "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=data[0].keys())
         writer.writeheader()
         writer.writerows(data)
- 
+
+    df = pd.DataFrame(data)
     last_query_results["data"] = None  # 다음 질문을 위해 초기화
-    return csv_path
+
+    return csv_path, df
 
 
 def build_agent_executor(dynamic_prefix: str) -> AgentExecutor:
@@ -198,7 +205,7 @@ def build_agent_executor(dynamic_prefix: str) -> AgentExecutor:
         ("human", "{input}"), # 질문
         MessagesPlaceholder("agent_scratchpad"), # 쿼리 결과가 동적으로 저장될 곳
     ])
- 
+
     agent = create_tool_calling_agent(llm, tools, prompt) # 어떤 tool을 호출하여 무엇을 할지 판단하는 객체 생성
     return AgentExecutor( # 에이전트의 생각을 행동으로 실행해주는 시스템
         agent=agent,
@@ -229,24 +236,62 @@ def load_metadata_for_query(user_input: str) -> tuple[list[str], str, str]:
     print(f"[TOKEN] rel_meta:   {count_tokens(rel_meta)}")
     return relevant_tables, table_meta, rel_meta
 
+def decide_chart(df: pd.DataFrame, user_question: str) -> dict:
+    """df 스키마를 보고 LLM이 차트 가능 여부와 타입을 판단한다."""
+    if df is None or len(df) <= 1:
+        return {"possible": False}
+
+    llm = get_llm()
+
+    schema_info = {
+        "columns": list(df.columns),
+        "dtypes":  {col: str(dtype) for col, dtype in df.dtypes.items()},
+        "sample":  df.head(2).to_dict(orient="records"),
+    }
+
+    prompt = f"""아래는 SQL 쿼리 결과 데이터의 스키마입니다.
+{json.dumps(schema_info, ensure_ascii=False)}
+
+사용자 질문: {user_question}
+
+이 데이터를 차트로 표현할 수 있나요?
+가능하면 아래 JSON 형식으로만 답하세요. 다른 말은 하지 마세요.
+{{"possible": true, "type": "bar", "x": "컬럼명", "y": "컬럼명"}}
+
+type은 bar, line, pie 중 하나입니다.
+불가능하면: {{"possible": false}}"""
+
+    try:
+        response = llm.invoke([HumanMessage(content=prompt)])
+        match = re.search(r'\{.*\}', response.content, re.DOTALL)
+        if not match:
+            return {"possible": False}
+
+        config = json.loads(match.group())
+
+        # 컬럼 존재 검증
+        if config.get("possible"):
+            # 1. 빈 문자열 체크 먼저
+            if not config.get("x") or not config.get("y"):
+                return {"possible": False}
+            # 2. 그 다음 컬럼 존재 검증
+            if config.get("x") not in df.columns or config.get("y") not in df.columns:
+                return {"possible": False}
+            # 3. y축 숫자 타입 검증
+            if not pd.api.types.is_numeric_dtype(df[config["y"]]):
+                return {"possible": False}
+
+        return config
+
+    except Exception:
+        return {"possible": False}
 
 def run_query(user_input: str, callbacks: list | None = None,) -> dict:
     """
     사용자 질문 하나를 처리하고 결과 dict를 반환한다.
- 
-    반환 형식:
-    {
-        "answer":             str,
-        "csv_path":           str | None,
-        "relevant_tables":    list[str],
-        "table_meta":         str,
-        "rel_meta":           str,
-        "intermediate_steps": list,
-        "error":              str | None,   # 에러 시에만 존재
-    }
     """
     relevant_tables, table_meta, rel_meta = load_metadata_for_query(user_input)
- 
+
     dynamic_prefix = AGENT_PREFIX
     if table_meta:
         dynamic_prefix += f"\n\n{table_meta}"
@@ -254,34 +299,41 @@ def run_query(user_input: str, callbacks: list | None = None,) -> dict:
         dynamic_prefix += f"\n\n{rel_meta}"
     print(table_meta)
     print(rel_meta)
- 
+
     agent_executor = build_agent_executor(dynamic_prefix) # agent 생성
- 
+
     invoke_config = {}
     if callbacks: # callback은 agent가 어떤 일을 하고 있는지 실시간으로 보여주는 용도. app.py에서 StreamlitCallbackHandler가 전달된다.
         invoke_config["callbacks"] = callbacks
- 
+
     try:
         response           = agent_executor.invoke({"input": user_input}, invoke_config)
         answer             = response["output"]
         intermediate_steps = response.get("intermediate_steps", [])
         print(f"[STEPS] 총 tool 호출 횟수: {len(intermediate_steps)}")
-        csv_path           = save_csv_if_needed()
- 
+        
+        csv_path, df     = save_csv_if_needed()
+        chart_config     = decide_chart(df, user_input) if df is not None else {"possible": False}
+        print(f"[CHART] chart_config: {chart_config}")
+
         return {
             "answer":             answer,
             "csv_path":           csv_path,
+            "df":                 df,
+            "chart_config":       chart_config,
             "relevant_tables":    relevant_tables,
             "table_meta":         table_meta,
             "rel_meta":           rel_meta,
             "intermediate_steps": intermediate_steps,
         }
- 
+
     except Exception as e:
         last_query_results["data"] = None   # 에러 시에도 버퍼 초기화
         return {
             "answer":             "",
             "csv_path":           None,
+            "df":                 None,
+            "chart_config":       {"possible": False},
             "relevant_tables":    relevant_tables,
             "table_meta":         table_meta,
             "rel_meta":           rel_meta,
