@@ -157,6 +157,12 @@ def execute_sql_query(sql_query: str) -> str:
         results = [dict(zip(columns, row)) for row in rows]
         conn.close()
 
+        from decimal import Decimal
+        results = [
+            {k: float(v) if isinstance(v, Decimal) else v for k, v in row.items()}
+            for row in results
+        ]
+
         # 4. 행 수에 따라 분기
         last_query_results["data"] = results
         if len(results) <= MAX_ROWS_IN_CONTEXT:
