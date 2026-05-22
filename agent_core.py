@@ -202,8 +202,8 @@ def save_csv_if_needed() -> tuple[str | None, pd.DataFrame | None]:
     return csv_path, df
 
 
-def build_agent_executor(dynamic_prefix: str) -> AgentExecutor:
-    """주어진 시스템 프롬프트로 AgentExecutor를 생성한다."""
+def build_agent_executor(dynamic_prefix: str):
+    """주어진 시스템 프롬프트로 Agent를 생성한다."""
     llm   = get_llm()
     tools = [execute_sql_query] # 추후 tool 추가 가능
 

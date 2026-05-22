@@ -28,11 +28,13 @@ def render_message(msg: dict) -> None:
         # 2. Agent 사고 흐름 토글
         if msg.get("intermediate_steps"):
             with st.expander("Agent 사고 흐름", expanded=False):
-                for action, observation in msg["intermediate_steps"]:
-                    st.markdown(f"**Tool:** {action.tool}")
-                    st.markdown(f"**Input:** {action.tool_input}")
-                    st.markdown(f"**Observation:** {observation}")
-                    st.markdown("---")
+                for step in msg["intermediate_steps"]:
+                    if "action" in step:
+                        st.markdown(f"**Tool:** {step['action']}")
+                        st.markdown(f"**Input:** {step['input']}")
+                    elif "observation" in step:
+                        st.markdown(f"**Observation:** {step['observation']}")
+                        st.markdown("---")
 
         # 3. 메시지 본문
         st.write(msg["content"])
@@ -104,7 +106,7 @@ if user_input := st.chat_input("질문을 입력하세요..."):
             # Agent 사고 흐름 토글 (실시간 콜백 이후 요약본)
             if result["intermediate_steps"]:
                 with st.expander("Agent 사고 흐름", expanded=False):
-                    for step in msg["intermediate_steps"]:
+                    for step in result["intermediate_steps"]:
                         if "action" in step:
                             st.markdown(f"**Tool:** {step['action']}")
                             st.markdown(f"**Input:** {step['input']}")
