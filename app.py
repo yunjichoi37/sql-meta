@@ -130,7 +130,7 @@ if user_input := st.chat_input("질문을 입력하세요..."):
                 x, y      = chart_config["x"], chart_config["y"]
                 chart_type = chart_config["type"]
 
-                st.markdown("**📊 차트**")
+                st.markdown("**📊 Chart**")
                 if chart_type == "bar":
                     st.bar_chart(df.set_index(x)[y])
                 elif chart_type == "line":
