@@ -1,11 +1,11 @@
 # agent_core.py
 """
 백엔드 핵심 로직:
-  - DB 연결 및 SQL 실행 (execute_sql_query tool)
-  - CSV 저장
-  - LLM / Agent 생성 및 실행
-  - 메타데이터 로딩 위임 (metadata_loader)
-  - 모듈 레벨 싱글톤으로 LLM 객체 1회 생성 → 성능 유지
+- DB 연결 및 SQL 실행 (execute_sql_query tool)
+- CSV 저장
+- LLM / Agent 생성 및 실행
+- 메타데이터 로딩 위임 (metadata_loader)
+- 모듈 레벨 싱글톤으로 LLM 객체 1회 생성 → 성능 유지
 """
 
 import os
@@ -18,8 +18,9 @@ from pathlib import Path
 
 import pyodbc
 from dotenv import load_dotenv
-from langchain.agents import AgentExecutor, create_tool_calling_agent
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
+from langgraph.prebuilt import create_react_agent
+from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.tools import tool
 from langchain_groq import ChatGroq
 
@@ -204,21 +205,12 @@ def save_csv_if_needed() -> tuple[str | None, pd.DataFrame | None]:
 def build_agent_executor(dynamic_prefix: str) -> AgentExecutor:
     """주어진 시스템 프롬프트로 AgentExecutor를 생성한다."""
     llm   = get_llm()
-    tools = [execute_sql_query] # 추후 tool 추가 가능(차트 그리기 등)
- 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", dynamic_prefix), # 테이블 메타데이터
-        ("human", "{input}"), # 질문
-        MessagesPlaceholder("agent_scratchpad"), # 쿼리 결과가 동적으로 저장될 곳
-    ])
+    tools = [execute_sql_query] # 추후 tool 추가 가능
 
-    agent = create_tool_calling_agent(llm, tools, prompt) # 어떤 tool을 호출하여 무엇을 할지 판단하는 객체 생성
-    return AgentExecutor( # 에이전트의 생각을 행동으로 실행해주는 시스템
-        agent=agent,
+    return create_react_agent(
+        model=llm,
         tools=tools,
-        verbose=True,
-        handle_parsing_errors=True,
-        return_intermediate_steps=True,
+        state_modifier=dynamic_prefix
     )
 
 import tiktoken
@@ -313,9 +305,21 @@ def run_query(user_input: str, callbacks: list | None = None,) -> dict:
         invoke_config["callbacks"] = callbacks
 
     try:
-        response           = agent_executor.invoke({"input": user_input}, invoke_config)
-        answer             = response["output"]
-        intermediate_steps = response.get("intermediate_steps", [])
+        state_input = {"messages": [("user", user_input)]}
+        response = agent_executor.invoke(state_input, invoke_config)
+
+        messages = response.get("messages", [])
+        answer = messages[-1].content if messages else ""
+
+        # intermediate_steps 파싱 방식 변경
+        intermediate_steps = []
+        for msg in messages:
+            if isinstance(msg, AIMessage) and getattr(msg, "tool_calls", None):
+                for tc in msg.tool_calls:
+                    intermediate_steps.append({"action": tc["name"], "input": tc["args"]})
+            elif isinstance(msg, ToolMessage):
+                intermediate_steps.append({"observation": msg.content})
+
         print(f"[STEPS] 총 tool 호출 횟수: {len(intermediate_steps)}")
         
         csv_path, df     = save_csv_if_needed()

@@ -72,12 +72,8 @@ if user_input := st.chat_input("질문을 입력하세요..."):
         st.write(user_input)
 
     with st.chat_message("assistant"):
-        # StreamlitCallbackHandler: Agent 사고 과정을 실시간으로 표시
-        from langchain_community.callbacks.streamlit import StreamlitCallbackHandler
-        st_callback = StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)
-
-        with st.spinner("관련 테이블과 메타데이터를 검색 중입니다..."):
-            result = run_query(user_input, callbacks=[st_callback])
+        with st.spinner("관련 테이블과 메타데이터를 검색하고 쿼리를 실행 중입니다..."):
+            result = run_query(user_input)  
 
         if "error" in result:
             st.error(f"시스템 에러 발생: {result['error']}")
@@ -108,11 +104,13 @@ if user_input := st.chat_input("질문을 입력하세요..."):
             # Agent 사고 흐름 토글 (실시간 콜백 이후 요약본)
             if result["intermediate_steps"]:
                 with st.expander("Agent 사고 흐름", expanded=False):
-                    for action, observation in result["intermediate_steps"]:
-                        st.markdown(f"**Tool:** {action.tool}")
-                        st.markdown(f"**Input:** {action.tool_input}")
-                        st.markdown(f"**Observation:** {observation}")
-                        st.markdown("---")
+                    for step in msg["intermediate_steps"]:
+                        if "action" in step:
+                            st.markdown(f"**Tool:** {step['action']}")
+                            st.markdown(f"**Input:** {step['input']}")
+                        elif "observation" in step:
+                            st.markdown(f"**Observation:** {step['observation']}")
+                            st.markdown("---")
 
             # 답변
             st.write(result["answer"].replace("\n", "  \n"))
