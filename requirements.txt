@@ -52,7 +52,7 @@ numpy==1.26.4
 orjson==3.11.9
 ormsgpack==1.12.2
 packaging==24.2
-pandas==3.0.3
+pandas==2.2.2
 pillow==12.2.0
 propcache==0.5.2
 protobuf==7.35.0
