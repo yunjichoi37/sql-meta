@@ -20,7 +20,7 @@ import pyodbc
 from dotenv import load_dotenv
 from langchain_core.tools import tool
 from langchain_groq import ChatGroq
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 
 from metadata_loader import get_relevant_tables, load_table_metadata, load_relationships
@@ -204,7 +204,7 @@ def build_agent_executor(dynamic_prefix: str):
     llm   = get_llm()
     tools = [execute_sql_query]
 
-    return create_react_agent(model=llm, tools=tools, prompt=dynamic_prefix)
+    return create_agent(model=llm, tools=tools, system_prompt=dynamic_prefix)
 
 
 def _extract_intermediate_steps(messages: list) -> list:
