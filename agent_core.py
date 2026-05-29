@@ -18,11 +18,10 @@ from pathlib import Path
 
 import pyodbc
 from dotenv import load_dotenv
-
-from langgraph.prebuilt import create_react_agent
-from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.tools import tool
 from langchain_groq import ChatGroq
+from langgraph.prebuilt import create_react_agent
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 
 from metadata_loader import get_relevant_tables, load_table_metadata, load_relationships
 from filtered_setting.client import DataverseClient
@@ -30,7 +29,6 @@ from filtered_setting.client import DataverseClient
 import re
 import json
 import pandas as pd
-from langchain_core.messages import HumanMessage
 
 warnings.filterwarnings("ignore")
 load_dotenv()
@@ -113,7 +111,7 @@ def get_llm() -> ChatGroq:
     if _llm is None:
         _llm = ChatGroq(
             api_key=GROQ_API_KEY,
-            model_name="llama-3.3-70b-versatile",
+            model="llama-3.3-70b-versatile",
             # model="openai/gpt-oss-120b",
             temperature=0,
         )
@@ -203,20 +201,26 @@ def save_csv_if_needed() -> tuple[str | None, pd.DataFrame | None]:
 
 
 def build_agent_executor(dynamic_prefix: str):
-    """주어진 시스템 프롬프트로 Agent를 생성한다."""
     llm   = get_llm()
-    tools = [execute_sql_query] # 추후 tool 추가 가능
+    tools = [execute_sql_query]
 
-    return create_react_agent(
-        model=llm,
-        tools=tools,
-        state_modifier=dynamic_prefix
-    )
+    return create_react_agent(model=llm, tools=tools, prompt=dynamic_prefix)
+
+
+def _extract_intermediate_steps(messages: list) -> list:
+    steps = []
+    for msg in messages:
+        if isinstance(msg, AIMessage) and msg.tool_calls:
+            for tc in msg.tool_calls:
+                steps.append({"tool": tc["name"], "input": tc["args"]})
+        elif isinstance(msg, ToolMessage):
+            if steps:
+                steps[-1]["output"] = msg.content
+    return steps
+
 
 import tiktoken
-
 enc = tiktoken.get_encoding("cl100k_base")
-
 def count_tokens(text: str) -> int:
     return len(enc.encode(text))
 
@@ -284,7 +288,7 @@ type은 bar, line, pie 중 하나입니다.
     except Exception:
         return {"possible": False}
 
-def run_query(user_input: str, callbacks: list | None = None,) -> dict:
+def run_query(user_input: str) -> dict:
     """
     사용자 질문 하나를 처리하고 결과 dict를 반환한다.
     """
@@ -301,25 +305,17 @@ def run_query(user_input: str, callbacks: list | None = None,) -> dict:
     agent_executor = build_agent_executor(dynamic_prefix) # agent 생성
 
     invoke_config = {}
-    if callbacks: # callback은 agent가 어떤 일을 하고 있는지 실시간으로 보여주는 용도. app.py에서 StreamlitCallbackHandler가 전달된다.
-        invoke_config["callbacks"] = callbacks
 
     try:
-        state_input = {"messages": [("user", user_input)]}
-        response = agent_executor.invoke(state_input, invoke_config)
-
+        response = agent_executor.invoke({"messages":[HumanMessage(content=user_input)]}, invoke_config or {})
         messages = response.get("messages", [])
-        answer = messages[-1].content if messages else ""
+        answer = ""
+        for msg in reversed(messages):
+            if isinstance(msg, AIMessage) and not msg.tool_calls:
+                answer = msg.content
+                break
 
-        # intermediate_steps 파싱 방식 변경
-        intermediate_steps = []
-        for msg in messages:
-            if isinstance(msg, AIMessage) and getattr(msg, "tool_calls", None):
-                for tc in msg.tool_calls:
-                    intermediate_steps.append({"action": tc["name"], "input": tc["args"]})
-            elif isinstance(msg, ToolMessage):
-                intermediate_steps.append({"observation": msg.content})
-
+        intermediate_steps = _extract_intermediate_steps(messages)
         print(f"[STEPS] 총 tool 호출 횟수: {len(intermediate_steps)}")
         
         csv_path, df     = save_csv_if_needed()

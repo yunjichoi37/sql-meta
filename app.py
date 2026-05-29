@@ -29,12 +29,10 @@ def render_message(msg: dict) -> None:
         if msg.get("intermediate_steps"):
             with st.expander("Agent 사고 흐름", expanded=False):
                 for step in msg["intermediate_steps"]:
-                    if "action" in step:
-                        st.markdown(f"**Tool:** {step['action']}")
-                        st.markdown(f"**Input:** {step['input']}")
-                    elif "observation" in step:
-                        st.markdown(f"**Observation:** {step['observation']}")
-                        st.markdown("---")
+                    st.markdown(f"**Tool:** `{step.get('tool', '')}`")
+                    st.markdown(f"**Input:** `{step.get('input', {}).get('sql_query', step.get('input', ''))}`")
+                    st.markdown(f"**결과:** {step.get('output', '')}")
+                    st.markdown("---")
 
         # 3. 메시지 본문
         st.write(msg["content"])
@@ -74,8 +72,8 @@ if user_input := st.chat_input("질문을 입력하세요..."):
         st.write(user_input)
 
     with st.chat_message("assistant"):
-        with st.spinner("관련 테이블과 메타데이터를 검색하고 쿼리를 실행 중입니다..."):
-            result = run_query(user_input)  
+        with st.spinner("데이터 조회 중입니다..."):
+            result = run_query(user_input)
 
         if "error" in result:
             st.error(f"시스템 에러 발생: {result['error']}")
@@ -107,12 +105,10 @@ if user_input := st.chat_input("질문을 입력하세요..."):
             if result["intermediate_steps"]:
                 with st.expander("Agent 사고 흐름", expanded=False):
                     for step in result["intermediate_steps"]:
-                        if "action" in step:
-                            st.markdown(f"**Tool:** {step['action']}")
-                            st.markdown(f"**Input:** {step['input']}")
-                        elif "observation" in step:
-                            st.markdown(f"**Observation:** {step['observation']}")
-                            st.markdown("---")
+                        st.markdown(f"**Tool:** `{step.get('tool', '')}`")
+                        st.markdown(f"**Input:** `{step.get('input', {}).get('sql_query', step.get('input', ''))}`")
+                        st.markdown(f"**결과:** {step.get('output', '')}")
+                        st.markdown("---")
 
             # 답변
             st.write(result["answer"].replace("\n", "  \n"))
