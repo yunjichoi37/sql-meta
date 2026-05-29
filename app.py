@@ -72,7 +72,7 @@ if user_input := st.chat_input("질문을 입력하세요..."):
         st.write(user_input)
 
     with st.chat_message("assistant"):
-        with st.spinner("관련 테이블과 메타데이터를 검색 중입니다..."):
+        with st.spinner("데이터 조회 중입니다..."):
             result = run_query(user_input)
 
         if "error" in result:
